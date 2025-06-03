@@ -1,10 +1,10 @@
 <template>
   <div>
     <h1>EkoNavike</h1>
-    <!-- Link profil -->
+    <!-- profil -->
     <router-link to="/profile">Profil</router-link>
 
-    <!-- Prikaz login/registraciju ako nije prijavljen -->
+    <!-- login/registraciju ako nije prijavljen -->
     <div v-if="!user">
       <input v-model="email"    placeholder="Email" />
       <input v-model="password" type="password" placeholder="Lozinka" />
@@ -13,7 +13,7 @@
       <button @click="googleLogin">Google prijava</button>
     </div>
 
-    <!-- korisnik-->
+    <!-- Dio vidljiv nakon prijave -->
     <div v-else>
       <p>Dobrodošao, <strong>{{ user.email }}</strong></p>
       <button @click="logout">Odjava</button>
@@ -28,8 +28,30 @@
         <h3>Tvoje navike</h3>
         <ul>
           <li v-for="h in habits" :key="h.id">
-            {{ h.name }}
+           
+            <span v-if="editId !== h.id">{{ h.name }}</span>
+            
+            <input
+              v-else
+              v-model="editName"
+              @keyup.enter="saveEdit(h.id)"
+              @keyup.esc="cancelEdit"
+            />
+
+            <!-- Gumb delete -->
             <button @click="deleteHabit(h.id)">Obriši</button>
+
+            <!-- gumb Uredi -->
+            <button v-if="editId !== h.id" @click="startEdit(h.id, h.name)">
+              Uredi
+            </button>
+            <!--gumbe Spremi i Otkazi -->
+            <button v-else @click="saveEdit(h.id)">
+              Spremi
+            </button>
+            <button v-if="editId === h.id" @click="cancelEdit">
+              Otkazi
+            </button>
           </li>
         </ul>
       </section>
@@ -42,35 +64,71 @@ import { ref, onUnmounted } from 'vue'
 import { useUserStore }   from '../stores/user'
 import { useHabitsStore } from '../stores/habits'
 
-// Inicijaliziraj store-ove
+// Inicijalizacija storo-ova
 const userStore   = useUserStore()
 const habitsStore = useHabitsStore()
 
 userStore.init()
 habitsStore.init()
 
-// Reaktivne varijable
+// forma i state
 const email      = ref('')
 const password   = ref('')
 const newHabit   = ref('')
 const user       = userStore.user
 const habits     = habitsStore.list
 
-// aut
+// edit
+const editId     = ref(null)
+const editName   = ref('')
+
+// auth (registracija/prijava/odjava)
 const register    = () => userStore.register(email.value, password.value)
 const login       = () => userStore.login(email.value, password.value)
 const googleLogin = () => userStore.googleLogin()
 const logout      = () => {
   userStore.logout()
+  // očisti listu navika
   habitsStore.list = []
 }
 
-//navike metode
-const addHabit    = () => {
+// dodavanje navike
+const addHabit = () => {
+  if (!newHabit.value.trim()) return
   habitsStore.add(newHabit.value)
   newHabit.value = ''
 }
+
+// brisanje navike
 const deleteHabit = id => habitsStore.remove(id)
+
+// uređivanje
+function startEdit(id, currentName) {
+  editId.value   = id
+  editName.value = currentName
+}
+
+function cancelEdit() {
+  editId.value   = null
+  editName.value = ''
+}
+
+async function saveEdit(id) {
+  if (!editName.value.trim()) {
+    // Poništi ako je unos prazan
+    cancelEdit()
+    return
+  }
+  await habitsStore.update(id, editName.value.trim())
+  cancelEdit()
+}
+
+// Prilikom unmountanja, ne trebamo dodatni cleanup ovdje,
+// budući da habitsStore.init() koristi onSnapshot auto-odjava.
+// Međutim, ako bi koristili unsubscribe, ovdje bi stavljali cleanup.
+onUnmounted(() => {
+  // primijeniti cleanup ako zatreba
+})
 </script>
 
 <style scoped>
@@ -83,11 +141,27 @@ input {
 button {
   margin: 0.25em 0;
 }
-ul { list-style: none; padding: 0; }
+ul {
+  list-style: none;
+  padding: 0;
+}
 li {
   background: #eef;
   padding: 0.5em;
   margin-bottom: 0.5em;
   border-radius: 4px;
+  display: flex;
+  align-items: center;
+}
+li input {
+  flex: 1;
+  margin-right: 0.5em;
+}
+li span {
+  flex: 1;
+}
+li button {
+  margin-left: 0.5em;
 }
 </style>
+
