@@ -1,4 +1,4 @@
-// src/stores/habits.js
+
 import { defineStore } from 'pinia'
 import { db } from '../firebase'
 import {
