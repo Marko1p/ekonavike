@@ -1,167 +1,93 @@
 <template>
-  <div>
-    <h1>EkoNavike</h1>
-    <!-- profil -->
-    <router-link to="/profile">Profil</router-link>
+  <div class="p-6 max-w-md mx-auto">
+    <h1 class="text-3xl font-bold mb-4">EkoNavike</h1>
 
-    <!-- login/registraciju ako nije prijavljen -->
     <div v-if="!user">
-      <input v-model="email"    placeholder="Email" />
-      <input v-model="password" type="password" placeholder="Lozinka" />
-      <button @click="register">Registriraj se</button>
-      <button @click="login">Prijava</button>
-      <button @click="googleLogin">Google prijava</button>
+      <input
+        v-model="email"
+        placeholder="Email"
+        class="block w-full mb-2 p-2 border rounded"
+      />
+      <input
+        v-model="password"
+        type="password"
+        placeholder="Lozinka"
+        class="block w-full mb-2 p-2 border rounded"
+      />
+      <button
+        @click="register"
+        class="bg-green-500 text-white px-4 py-2 rounded mr-2"
+      >
+        Registriraj se
+      </button>
+      <button
+        @click="login"
+        class="bg-blue-500 text-white px-4 py-2 rounded mr-2"
+      >
+        Prijava
+      </button>
+      <button
+        @click="googleLogin"
+        class="bg-red-500 text-white px-4 py-2 rounded"
+      >
+        Google
+      </button>
     </div>
 
-    <!-- Dio vidljiv nakon prijave -->
     <div v-else>
-      <p>Dobrodošao, <strong>{{ user.email }}</strong></p>
-      <button @click="logout">Odjava</button>
+      <p class="mb-4">Dobrodošao, <strong>{{ user.email }}</strong></p>
 
-      <section>
-        <h2>Dodaj naviku</h2>
-        <input v-model="newHabit" placeholder="Nova navika" />
-        <button @click="addHabit">Spremi</button>
-      </section>
+      <!-- NAVIGACIJA -->
+      <nav class="mb-6 flex space-x-4">
+        <router-link
+          to="/habits"
+          class="text-green-600 hover:underline"
+        >Navike</router-link>
+        <router-link
+          to="/challenges"
+          class="text-green-600 hover:underline"
+        >Izazovi</router-link>
+        <router-link
+          to="/tips"
+          class="text-green-600 hover:underline"
+        >Savjeti</router-link>
+        <router-link
+          to="/social"
+          class="text-green-600 hover:underline"
+        >Social</router-link>
+        <router-link
+          to="/profile"
+          class="text-green-600 hover:underline"
+        >Profil</router-link>
+      </nav>
 
-      <section>
-        <h3>Tvoje navike</h3>
-        <ul>
-          <li v-for="h in habits" :key="h.id">
-           
-            <span v-if="editId !== h.id">{{ h.name }}</span>
-            
-            <input
-              v-else
-              v-model="editName"
-              @keyup.enter="saveEdit(h.id)"
-              @keyup.esc="cancelEdit"
-            />
-
-            <!-- Gumb delete -->
-            <button @click="deleteHabit(h.id)">Obriši</button>
-
-            <!-- gumb Uredi -->
-            <button v-if="editId !== h.id" @click="startEdit(h.id, h.name)">
-              Uredi
-            </button>
-            <!--gumbe Spremi i Otkazi -->
-            <button v-else @click="saveEdit(h.id)">
-              Spremi
-            </button>
-            <button v-if="editId === h.id" @click="cancelEdit">
-              Otkazi
-            </button>
-          </li>
-        </ul>
-      </section>
+      <button
+        @click="logout"
+        class="bg-gray-700 text-white px-3 py-1 rounded"
+      >
+        Odjava
+      </button>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onUnmounted } from 'vue'
-import { useUserStore }   from '../stores/user'
-import { useHabitsStore } from '../stores/habits'
+import { ref } from 'vue'
+import { useUserStore } from '../stores/user'
 
-// Inicijalizacija storo-ova
 const userStore   = useUserStore()
-const habitsStore = useHabitsStore()
-
 userStore.init()
-habitsStore.init()
 
-// forma i state
-const email      = ref('')
-const password   = ref('')
-const newHabit   = ref('')
-const user       = userStore.user
-const habits     = habitsStore.list
+const email       = ref('')
+const password    = ref('')
+const user        = userStore.user
 
-// edit
-const editId     = ref(null)
-const editName   = ref('')
-
-// auth (registracija/prijava/odjava)
 const register    = () => userStore.register(email.value, password.value)
 const login       = () => userStore.login(email.value, password.value)
 const googleLogin = () => userStore.googleLogin()
-const logout      = () => {
-  userStore.logout()
-  // očisti listu navika
-  habitsStore.list = []
-}
-
-// dodavanje navike
-const addHabit = () => {
-  if (!newHabit.value.trim()) return
-  habitsStore.add(newHabit.value)
-  newHabit.value = ''
-}
-
-// brisanje navike
-const deleteHabit = id => habitsStore.remove(id)
-
-// uređivanje
-function startEdit(id, currentName) {
-  editId.value   = id
-  editName.value = currentName
-}
-
-function cancelEdit() {
-  editId.value   = null
-  editName.value = ''
-}
-
-async function saveEdit(id) {
-  if (!editName.value.trim()) {
-    // Poništi ako je unos prazan
-    cancelEdit()
-    return
-  }
-  await habitsStore.update(id, editName.value.trim())
-  cancelEdit()
-}
-
-// Prilikom unmountanja, ne trebamo dodatni cleanup ovdje,
-// budući da habitsStore.init() koristi onSnapshot auto-odjava.
-// Međutim, ako bi koristili unsubscribe, ovdje bi stavljali cleanup.
-onUnmounted(() => {
-  // primijeniti cleanup ako zatreba
-})
+const logout      = () => userStore.logout()
 </script>
 
 <style scoped>
-input {
-  display: block;
-  width: 100%;
-  margin-bottom: 0.5em;
-  padding: 0.5em;
-}
-button {
-  margin: 0.25em 0;
-}
-ul {
-  list-style: none;
-  padding: 0;
-}
-li {
-  background: #eef;
-  padding: 0.5em;
-  margin-bottom: 0.5em;
-  border-radius: 4px;
-  display: flex;
-  align-items: center;
-}
-li input {
-  flex: 1;
-  margin-right: 0.5em;
-}
-li span {
-  flex: 1;
-}
-li button {
-  margin-left: 0.5em;
-}
-</style>
 
+</style>
