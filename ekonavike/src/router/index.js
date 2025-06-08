@@ -1,23 +1,27 @@
-
 import { createRouter, createWebHistory } from 'vue-router'
-import { useUserStore }                  from '../stores/user'
+import { useUserStore }          from '../stores/user'
 
-import Home       from '../views/Home.vue'
-import Habits     from '../views/Habits.vue'
-import Challenges from '../views/Challenges.vue'
-import Tips       from '../views/Tips.vue'
-import Social     from '../views/Social.vue'
-import Profile    from '../views/Profile.vue'
-import NotFound   from '../views/NotFound.vue'
+
+import Home        from '../views/Home.vue'        
+import Dashboard   from '../views/Dashboard.vue'   
+import Habits      from '../views/Habits.vue'
+import Challenges  from '../views/Challenges.vue'
+import Tips        from '../views/Tips.vue'
+import Social      from '../views/Social.vue'
+import EcoSpots    from '../views/EcoSpots.vue'
+import Profile     from '../views/Profile.vue'
+import NotFound    from '../views/NotFound.vue'
 
 const routes = [
-  { path: '/',             name: 'Home',       component: Home,       meta: { requiresAuth: false } },
-  { path: '/habits',       name: 'Habits',     component: Habits,     meta: { requiresAuth: true  } },
-  { path: '/challenges',   name: 'Challenges', component: Challenges, meta: { requiresAuth: true  } },
-  { path: '/tips',         name: 'Tips',       component: Tips,       meta: { requiresAuth: true  } },
-  { path: '/social',       name: 'Social',     component: Social,     meta: { requiresAuth: true  } },
-  { path: '/profile',      name: 'Profile',    component: Profile,    meta: { requiresAuth: true  } },
-  { path: '/:pathMatch(.*)*', name: 'NotFound',component: NotFound }
+  { path: '/',         name: 'Home',       component: Home,       meta: { guest: true } },
+  { path: '/dashboard',name: 'Dashboard',  component: Dashboard,  meta: { requiresAuth: true } },
+  { path: '/habits',    name: 'Habits',     component: Habits,     meta: { requiresAuth: true } },
+  { path: '/challenges',name: 'Challenges', component: Challenges, meta: { requiresAuth: true } },
+  { path: '/tips',      name: 'Tips',       component: Tips,       meta: { requiresAuth: true } },
+  { path: '/social',    name: 'Social',     component: Social,     meta: { requiresAuth: true } },
+  { path: '/ecospots',  name: 'EcoSpots',   component: EcoSpots,   meta: { requiresAuth: true } },
+  { path: '/profile',   name: 'Profile',    component: Profile,    meta: { requiresAuth: true } },
+  { path: '/:pathMatch(.*)*', name: 'NotFound', component: NotFound }
 ]
 
 const router = createRouter({
@@ -25,10 +29,20 @@ const router = createRouter({
   routes
 })
 
+
 router.beforeEach((to, from, next) => {
-  const loggedIn = !!useUserStore().user
-  if (to.meta.requiresAuth && !loggedIn) next({ name: 'Home' })
-  else next()
+  const userStore = useUserStore()
+  const loggedIn  = !!userStore.user
+
+  if (to.meta.requiresAuth && !loggedIn) {
+    
+    return next({ name: 'Home' })
+  }
+  if (to.meta.guest && loggedIn) {
+    
+    return next({ name: 'Dashboard' })
+  }
+  next()
 })
 
 export { router }
