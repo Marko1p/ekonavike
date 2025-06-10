@@ -1,19 +1,8 @@
-
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 
 export default defineConfig({
-  plugins: [
-    vue(),
-    {
-      name: 'add-coop-header',
-      configureServer(server) {
-        server.middlewares.use((req, res, next) => {
-          res.setHeader('Cross-Origin-Opener-Policy', 'same-origin-allow-popups')
-          next()
-        })
-      }
-    }
-  ]
+  plugins: [vue()],
+  // ↓ ne trebate nigdje navoditi postcss.config.js, Vite ga automatski učita
+  // css: { postcss: './postcss.config.js' }  
 })
-
