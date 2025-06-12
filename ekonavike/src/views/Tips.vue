@@ -1,72 +1,83 @@
 <template>
-  <div class="p-6 max-w-3xl mx-auto">
-    <h2 class="text-3xl font-bold text-green-700 mb-6">Sustainability Tips</h2>
+  <section class="py-12 bg-green-50 min-h-screen">
+    <div class="max-w-xl mx-auto p-6 space-y-6">
+      <Lightbulb class="mx-auto w-12 h-12 text-green-700"/>
 
-    
-    <div class="mb-6">
-      <label for="category" class="font-medium text-green-800">Filtriraj po kategoriji:</label>
-      <select
-        v-model="selectedCategory"
-        id="category"
-        class="ml-2 border border-gray-300 rounded p-1"
-      >
-        <option value="">Svi</option>
-        <option v-for="cat in categories" :key="cat" :value="cat">
-          {{ capitalize(cat) }}
-        </option>
-      </select>
-    </div>
+      <h1 class="text-2xl font-bold text-center text-green-800">
+        Personalized Sustainability Tips
+      </h1>
 
-    
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-      <div
-        v-for="tip in filteredTips"
-        :key="tip.id"
-        class="border rounded-lg shadow-sm overflow-hidden bg-white dark:bg-green-800"
+      <textarea
+        v-model="habitsInput"
+        rows="4"
+        placeholder="I recycle weekly, etc…"
+        class="w-full p-3 border rounded focus:ring-2 focus:ring-green-300"
+      />
+
+      <button
+        @click="generateTips"
+        :disabled="!habitsInput.trim() || loading"
+        class="w-full bg-green-700 text-white p-3 rounded hover:bg-green-800 disabled:opacity-50 flex items-center justify-center"
       >
-        <img
-          v-if="tip.imageUrl"
-          :src="tip.imageUrl"
-          alt="Tip Image"
-          class="w-full h-36 object-cover"
-        />
-        <div class="p-4">
-          <h3 class="text-xl font-bold text-green-700 dark:text-green-100 mb-1">{{ tip.title }}</h3>
-          <p class="text-green-600 dark:text-green-300 mb-2">{{ tip.description }}</p>
-          <p class="text-sm text-gray-500">Kategorija: {{ capitalize(tip.category) }}</p>
-        </div>
-      </div>
+        <Sparkles class="w-5 h-5 mr-2"/>
+        <span>{{ loading ? 'Generating…' : 'Get My Tips' }}</span>
+      </button>
+
+      <ul v-if="tips.length" class="mt-6 space-y-4">
+        <li
+          v-for="(tip, i) in tips"
+          :key="i"
+          class="p-4 bg-white rounded-lg border border-green-100"
+        >
+          {{ tip }}
+        </li>
+      </ul>
     </div>
-  </div>
+  </section>
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
-import { useTipsStore } from '../stores/tips'
+import { ref } from 'vue'
+import { Lightbulb, Sparkles } from 'lucide-vue-next'
+import OpenAI from 'openai'
 
 
-const tipsStore = useTipsStore()
-onMounted(() => {
-  if (typeof tipsStore.init === 'function') tipsStore.init()
+const openai = new OpenAI({
+  apiKey: import.meta.env.VITE_OPENAI_API_KEY,
+  dangerouslyAllowBrowser: true
 })
 
-const selectedCategory = ref('')
+const habitsInput = ref('')
+const tips        = ref([])
+const loading     = ref(false)
 
+async function generateTips() {
+  if (!habitsInput.value.trim()) return
+  loading.value = true
+  tips.value     = []
 
-const categories = computed(() => {
-  const all = tipsStore.tips.map(t => t.category)
-  return Array.from(new Set(all))
-})
+  try {
+    const response = await openai.chat.completions.create({
+      model: 'gpt-3.5-turbo',
+      messages: [
+        { role: 'system', content: 'You are a helpful eco-assistant.' },
+        { role: 'user',   content: `My habits: ${habitsInput.value}. Give me 5 tips.` }
+      ],
+      temperature: 0.7
+    })
 
+    const text = response.choices[0].message.content
+    tips.value = text
+      .split(/\r?\n/)
+      .map(l => l.replace(/^\d+[\.\)]\s*/, '').trim())
+      .filter(Boolean)
 
-const filteredTips = computed(() => {
-  if (!selectedCategory.value) return tipsStore.tips
-  return tipsStore.tips.filter(t => t.category === selectedCategory.value)
-})
-
-function capitalize(str) {
-  if (!str) return ''
-  return str.charAt(0).toUpperCase() + str.slice(1)
+  } catch (err) {
+    console.error(err)
+    tips.value = ['Greška pri generiranju savjeta.']
+  } finally {
+    loading.value = false
+  }
 }
 </script>
 

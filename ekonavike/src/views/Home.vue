@@ -1,44 +1,92 @@
 <template>
-  
   <div class="p-6 max-w-md mx-auto">
     <h1 class="text-3xl font-bold mb-4">EkoNavike</h1>
 
-    <div v-if="!user">
-      <input v-model="email"    placeholder="Email"    class="block w-full mb-2 p-2 border rounded" />
-      <input v-model="password" type="password" placeholder="Lozinka" class="block w-full mb-2 p-2 border rounded" />
-
-      <div class="flex space-x-2 mb-4">
-        <button @click="register"    class="flex-1 bg-green-500 text-white px-4 py-2 rounded">Registriraj se</button>
-        <button @click="login"       class="flex-1 bg-blue-500  text-white px-4 py-2 rounded">Prijava</button>
+    <form @submit.prevent="handleLogin" class="space-y-4">
+      <input
+        v-model="email"
+        type="email"
+        autocomplete="username"
+        placeholder="Email"
+        class="block w-full p-2 border rounded"
+        required
+      />
+      <input
+        v-model="password"
+        type="password"
+        autocomplete="current-password"
+        placeholder="Lozinka"
+        class="block w-full p-2 border rounded"
+        required
+      />
+      <div class="flex space-x-2">
+        <button
+          type="button"
+          @click="handleRegister"
+          class="flex-1 bg-green-500 text-white p-2 rounded hover:bg-green-600"
+        >
+          Registriraj se
+        </button>
+        <button
+          type="submit"
+          class="flex-1 bg-blue-500 text-white p-2 rounded hover:bg-blue-600"
+        >
+          Prijava
+        </button>
       </div>
-      <button @click="googleLogin" class="w-full bg-red-500 text-white px-4 py-2 rounded">Google prijava</button>
-    </div>
+    </form>
 
-    <div v-else>
-      <p class="mb-4">Dobrodošao, <strong>{{ user.email }}</strong></p>
-      
-    </div>
+    <button
+      @click="handleGoogle"
+      class="w-full mt-4 bg-red-500 text-white p-2 rounded hover:bg-red-600"
+    >
+      Google prijava
+    </button>
   </div>
 </template>
 
 <script setup>
-import { ref, watch } from 'vue'
-import { useRouter }  from 'vue-router'
+import { ref }         from 'vue'
+import { useRouter }   from 'vue-router'
 import { useUserStore } from '../stores/user'
 
+const email     = ref('')
+const password  = ref('')
 const userStore = useUserStore()
+const router    = useRouter()
+
+
 userStore.init()
 
-const user     = userStore.user
-const email    = ref('')
-const password = ref('')
-const router   = useRouter()
+async function handleRegister() {
+  try {
+    await userStore.register(email.value, password.value)
+    router.push({ name: 'Dashboard' })
+  } catch (e) {
+    alert(e.message)
+  }
+}
 
-const register    = async () => { await userStore.register(email.value, password.value) }
-const login       = async () => { await userStore.login(email.value, password.value) }
-const googleLogin = async () => { await userStore.googleLogin() }
+async function handleLogin() {
+  try {
+    await userStore.login(email.value, password.value)
+    router.push({ name: 'Dashboard' })
+  } catch (e) {
+    alert(e.message)
+  }
+}
 
-watch(user, u => {
-  if (u) router.push('/dashboard')
-})
+async function handleGoogle() {
+  try {
+    await userStore.googleLogin()
+    router.push({ name: 'Dashboard' })
+  } catch (e) {
+    alert(e.message)
+  }
+}
 </script>
+
+<style scoped>
+
+
+</style>
