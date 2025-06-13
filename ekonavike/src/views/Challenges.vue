@@ -1,42 +1,74 @@
 <template>
-  <div class="p-6 max-w-md mx-auto">
-    <h1 class="text-2xl font-bold mb-4">Eco‐Challenges</h1>
+  
 
-    <div v-if="!user">
-      <p class="text-gray-600 mb-2">Morate se prijaviti da vidite izazove.</p>
-      <router-link to="/" class="text-green-600 hover:underline">
-        Povratak na prijavu
-      </router-link>
-    </div>
+  <section class="p-6 max-w-4xl mx-auto space-y-6">
+    <h1 class="text-3xl font-bold text-center">Eco-Izazovi</h1>
 
-    <div v-else>
-      <ul class="space-y-4">
-        <li
-          v-for="c in list"
-          :key="c.id"
-          class="p-4 bg-white rounded shadow"
-        >
-          <h2 class="font-semibold text-green-700">{{ c.title }}</h2>
-          <p class="text-gray-700">{{ c.description }}</p>
-        </li>
-      </ul>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div
+        v-for="c in challengesStore.allChallenges"
+        :key="c.id"
+        class="border rounded-lg p-4 flex flex-col"
+      >
+        <!-- Naslov + bedž -->
+        <h2 class="text-xl font-semibold mb-2">
+          {{ c.title }}
+          <span
+            v-if="isFinished(c.id)"
+            class="ml-2 inline-block bg-green-200 text-green-800 text-xs font-medium px-2 py-1 rounded"
+          >
+            Bedž: {{ c.badge || 'Završeno' }}
+          </span>
+        </h2>
+
+        <!-- Opis -->
+        <p class="flex-grow mb-4">{{ c.description }}</p>
+
+        <!-- Gumbi -->
+        <div class="mt-auto space-x-2">
+          <!-- Ako još nisi ušao u izazov -->
+          <button
+            v-if="!isJoined(c.id)"
+            @click="challengesStore.joinChallenge(c.id)"
+            class="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600"
+          >
+            Pridruži se
+          </button>
+
+          <!-- Ako jesi, prikaži toggle -->
+          <button
+            v-else
+            @click="challengesStore.toggleFinishChallenge(c.id)"
+            :class="isFinished(c.id)
+              ? 'bg-yellow-500 hover:bg-yellow-600'
+              : 'bg-green-500 hover:bg-green-600'"
+            class="text-white px-3 py-1 rounded"
+          >
+            {{ isFinished(c.id) ? 'Poništi dovršeno' : 'Označi dovršeno' }}
+          </button>
+        </div>
+      </div>
     </div>
-  </div>
+  </section>
 </template>
 
 <script setup>
-import { computed }          from 'vue'
-import { useRouter }         from 'vue-router'
-import { useUserStore }      from '../stores/user'
-import { useChallengesStore }from '../stores/challenges'
-
-const userStore      = useUserStore()
-userStore.init()
+import { onMounted } from 'vue'
+import { useChallengesStore } from '@/stores/challenges'
+import Navbar from '@/components/Navbar.vue'
 
 const challengesStore = useChallengesStore()
-challengesStore.init()
 
-const user = computed(() => userStore.user)
-const list = computed(() => challengesStore.list)
-const router = useRouter()
+// pri mountu podesi onSnapshot slušalice
+onMounted(() => {
+  challengesStore.fetchAllChallenges()
+  challengesStore.fetchUserChallenges()
+})
+
+// pomoćne funkcije za template
+const isJoined = id =>
+  challengesStore.userChallenges.some(uc => uc.challengeId === id)
+
+const isFinished = id =>
+  challengesStore.userChallenges.some(uc => uc.challengeId === id && uc.isFinished)
 </script>

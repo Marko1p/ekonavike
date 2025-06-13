@@ -3,92 +3,63 @@ import { db } from '../firebase'
 import {
   collection,
   doc,
-  getDocs,
-  onSnapshot,
   query,
   where,
+  onSnapshot,
   addDoc,
   updateDoc,
-  arrayUnion,
   serverTimestamp
 } from 'firebase/firestore'
 import { useUserStore } from './user'
 
-
 export const useChallengesStore = defineStore('challenges', {
   state: () => ({
-    allChallenges: [],      
-    userChallenges: [],     
-    unsubscribeAll: null,   
-    unsubscribeUser: null   
+    allChallenges: [],
+    userChallenges: []
   }),
   actions: {
-    async fetchAllChallenges() {
-      const q = query(collection(db, 'challenges'), where('isActive', '==', true))
-      this.unsubscribeAll = onSnapshot(q, snapshot => {
-        this.allChallenges = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+    fetchAllChallenges() {
+      const q = query(
+        collection(db, 'challenges'),
+        where('isActive', '==', true)
+      )
+      onSnapshot(q, snap => {
+        this.allChallenges = snap.docs.map(d => ({ id: d.id, ...d.data() }))
       })
     },
-
-    async fetchUserChallenges() {
-      const userStore = useUserStore()
-      if (!userStore.user) return
-
+    fetchUserChallenges() {
+      const user = useUserStore().user
+      if (!user) return
       const q = query(
         collection(db, 'userChallenges'),
-        where('userId', '==', userStore.user.uid)
+        where('userId', '==', user.uid)
       )
-      this.unsubscribeUser = onSnapshot(q, snapshot => {
-        this.userChallenges = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+      onSnapshot(q, snap => {
+        this.userChallenges = snap.docs.map(d => ({ id: d.id, ...d.data() }))
       })
     },
-
     async joinChallenge(challengeId) {
-      const userStore = useUserStore()
-      if (!userStore.user) return
-
-      const already = this.userChallenges.find(uc => uc.challengeId === challengeId)
-      if (already) return
-
+      const user = useUserStore().user
+      if (!user) return
+      if (this.userChallenges.some(uc => uc.challengeId === challengeId)) return
       await addDoc(collection(db, 'userChallenges'), {
-        userId:       userStore.user.uid,
-        challengeId:  challengeId,
+        userId:       user.uid,
+        challengeId,
         joinedAt:     serverTimestamp(),
-        daysCompleted: [],
         isFinished:   false,
         finishedAt:   null
       })
     },
-
-    async completeDay(challengeDocId, dateString) {
-      const ucRef = doc(db, 'userChallenges', challengeDocId)
-      await updateDoc(ucRef, {
-        daysCompleted: arrayUnion(dateString)
-      })
-    },
-
-    async checkFinish(challengeDocId) {
-      
-      const uc = this.userChallenges.find(x => x.id === challengeDocId)
+    async toggleFinishChallenge(challengeId) {
+      // pronađi već spremljeni dokument
+      const uc = this.userChallenges.find(uc => uc.challengeId === challengeId)
       if (!uc) return
-
-     
-      const global = this.allChallenges.find(c => c.id === uc.challengeId)
-      if (!global) return
-
-      if (
-        !uc.isFinished &&
-        Array.isArray(uc.daysCompleted) &&
-        uc.daysCompleted.length >= global.durationDays
-      ) {
-       
-        const ucRef = doc(db, 'userChallenges', challengeDocId)
-        await updateDoc(ucRef, {
-          isFinished: true,
-          finishedAt: serverTimestamp()
-        })
-        
-      }
+      const ref = doc(db, 'userChallenges', uc.id)
+      const noviStatus = !uc.isFinished
+      await updateDoc(ref, {
+        isFinished: noviStatus,
+        finishedAt: noviStatus ? serverTimestamp() : null
+      })
     }
   }
 })

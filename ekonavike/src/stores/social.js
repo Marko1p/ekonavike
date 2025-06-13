@@ -1,78 +1,68 @@
+// src/stores/social.js
 import { defineStore } from 'pinia'
-import { db } from '../firebase'
+import { db } from '@/firebase'
 import {
-  collection,
-  onSnapshot,
-  query,
-  orderBy,
-  addDoc,
-  updateDoc,
-  doc,
-  arrayUnion,
-  arrayRemove,
-  serverTimestamp,
-  increment
+  collection, doc, onSnapshot, addDoc, updateDoc,
+  arrayUnion, serverTimestamp, query, orderBy
 } from 'firebase/firestore'
 import { useUserStore } from './user'
 
 export const useSocialStore = defineStore('social', {
   state: () => ({
-    posts: [],
-    unsubscribePosts: null
+    posts: []
   }),
   actions: {
-  
     fetchPosts() {
-      const q = query(collection(db, 'posts'), orderBy('createdAt', 'desc'))
-      this.unsubscribePosts = onSnapshot(q, snapshot => {
-        this.posts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+      const q = query(
+        collection(db, 'posts'),
+        orderBy('createdAt', 'desc')
+      )
+      onSnapshot(q, snap => {
+        this.posts = snap.docs.map(d => {
+          const { text, likes, comments, createdAt } = d.data()
+          return {
+            id:        d.id,
+            text,
+            likes:     Array.isArray(likes)    ? likes    : [],
+            comments:  Array.isArray(comments) ? comments : [],
+            createdAt: createdAt || null
+          }
+        })
       })
     },
 
-    
-    async createPost(content, imageUrl = '') {
-      const userStore = useUserStore()
-      if (!userStore.user) return
-
+    async publishPost(text) {
+      const { user } = useUserStore()
+      if (!user) return
       await addDoc(collection(db, 'posts'), {
-        userId: userStore.user.uid,
-        content,
-        imageUrl,
-        createdAt: serverTimestamp(),
-        likes: [],
-        commentsCount: 0
+        text,
+        likes:      [],
+        comments:   [],
+        createdBy:  user.uid,
+        createdAt:  serverTimestamp()
       })
     },
 
-    
-    async toggleLike(postId) {
-      const userStore = useUserStore()
-      if (!userStore.user) return
-
-      const post = this.posts.find(p => p.id === postId)
-      if (!post) return
-
-      const postRef = doc(db, 'posts', postId)
-      const userId = userStore.user.uid
-      if (post.likes.includes(userId)) {
-        await updateDoc(postRef, { likes: arrayRemove(userId) })
-      } else {
-        await updateDoc(postRef, { likes: arrayUnion(userId) })
-      }
+    async likePost(postId) {
+      const { user } = useUserStore()
+      if (!user) return
+      const ref = doc(db, 'posts', postId)
+      await updateDoc(ref, {
+        likes: arrayUnion(user.uid)
+      })
     },
 
-    async createComment(postId, content) {
-      const userStore = useUserStore()
-      if (!userStore.user) return
-
-      await addDoc(collection(db, 'comments'), {
-        postId,
-        userId: userStore.user.uid,
-        content,
-        createdAt: serverTimestamp()
+    async addComment(postId, text) {
+      const { user } = useUserStore()
+      if (!user) return
+      const ref = doc(db, 'posts', postId)
+      await updateDoc(ref, {
+        comments: arrayUnion({
+          text,
+          author:    user.uid,
+          createdAt: serverTimestamp()
+        })
       })
-      const postRef = doc(db, 'posts', postId)
-      await updateDoc(postRef, { commentsCount: increment(1) })
     }
   }
 })
