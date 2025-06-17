@@ -1,8 +1,8 @@
 <template>
   <div class="max-w-2xl mx-auto py-8 space-y-6">
-    <h1 class="text-3xl font-bold">Social Hub</h1>
 
-    <!-- Nova objava -->
+    <!-- New post form -->
+    <h1 class="text-3xl font-bold">Social Hub</h1>
     <textarea
       v-model="newPost"
       placeholder="Što misliš?"
@@ -16,67 +16,70 @@
       Objavi
     </button>
 
-    <!-- Lista postova -->
-    <div
-      v-for="post in posts"
-      :key="post.id"
-      class="border rounded p-4 space-y-3"
-    >
-      <p class="text-gray-800">{{ post.text }}</p>
-      <p class="text-sm text-gray-500">
-        Objavljeno:
-        <span v-if="post.createdAt">
-          {{ formatDate(post.createdAt.toDate()) }}
-        </span>
-        <span v-else>—</span>
-      </p>
+    <!-- Loading / error -->
+    <div v-if="loading" class="text-center">Učitavanje objava…</div>
+    <div v-else-if="error" class="text-red-500">Greška: {{ error.message }}</div>
 
-      <button
-        @click="onLike(post.id)"
-        class="text-yellow-600 hover:underline"
+    <!-- Posts list -->
+    <div v-else class="space-y-6">
+      <div
+        v-for="post in posts"
+        :key="post.id"
+        class="border rounded-lg p-4 shadow"
       >
-        👍 {{ post.likes.length }} Like
-      </button>
+        <p class="mb-2">{{ post.text }}</p>
+        <small class="block mb-2">
+          Objavljeno: 
+          {{ post.createdAt?.toDate().toLocaleString() || '—' }}
+        </small>
 
-      <!-- Unos komentara -->
-      <div class="mt-3 flex gap-2">
-        <input
-          v-model="comments[post.id]"
-          placeholder="Komentiraj..."
-          class="flex-1 border rounded p-1"
-        />
         <button
-          @click="onComment(post.id)"
-          class="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600"
+          @click="onLike(post.id)"
+          class="mr-4 text-green-600"
         >
-          Pošalji
+          👍 {{ post.likes.length }}
         </button>
-      </div>
 
-      <!-- Prikaz komentara -->
-      <ul class="mt-2 space-y-1">
-        <li
-          v-for="c in post.comments"
-          :key="c.id"
-          class="text-sm text-gray-700"
-        >
-          <span class="block">{{ c.text }}</span>
-          <span class="text-xs text-gray-500">
-            — {{ formatDate(c.createdAt.toDate()) }}
-          </span>
-        </li>
-      </ul>
+        <!-- Comments -->
+        <div class="mt-4 space-y-2">
+          <div
+            v-for="c in post.comments"
+            :key="c.id"
+            class="flex items-center space-x-2"
+          >
+            <span class="font-medium">User {{ c.author }}:</span>
+            <span>{{ c.text }}</span>
+          </div>
+
+          <div class="flex space-x-2">
+            <input
+              v-model="comments[post.id]"
+              placeholder="Dodaj komentar…"
+              class="flex-1 border rounded p-1"
+            />
+            <button
+              @click="onComment(post.id)"
+              class="bg-green-500 text-white px-3 rounded"
+            >
+              OK
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
-import { useSocialStore }         from '@/stores/social'
+import { storeToRefs }       from 'pinia'
+import { useSocialStore }    from '@/stores/social'
 
-const store    = useSocialStore()
-const newPost  = ref('')
-const comments = reactive({})
+const store     = useSocialStore()
+const { posts, loading, error } = storeToRefs(store)
+
+const newPost   = ref('')
+const comments  = reactive({})
 
 onMounted(() => {
   store.fetchPosts()
@@ -93,19 +96,9 @@ function onLike(postId) {
 }
 
 function onComment(postId) {
-  const txt = comments[postId] && comments[post.id]?.trim()
+  const txt = comments[postId]?.trim()
   if (!txt) return
   store.addComment(postId, txt)
   comments[postId] = ''
 }
-
-function formatDate(d) {
-  return d.toLocaleString()
-}
-
-const posts = store.posts
 </script>
-
-<style scoped>
-/* po potrebi dodatna stilizacija */
-</style>

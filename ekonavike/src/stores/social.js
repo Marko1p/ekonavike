@@ -1,87 +1,78 @@
-// src/stores/social.js
+// stores/social.js
 import { defineStore } from 'pinia'
-import { db } from '@/firebase'
-import {
-  collection,
-  doc,
-  onSnapshot,
-  addDoc,
-  updateDoc,
-  arrayUnion,
-  serverTimestamp,
-  query,
-  orderBy,
-  getDocs
+import { 
+  collection, addDoc, serverTimestamp, onSnapshot, 
+  updateDoc, arrayUnion, doc 
 } from 'firebase/firestore'
-import { useUserStore } from './user'
+import { db, auth } from '@/firebase'
 
 export const useSocialStore = defineStore('social', {
   state: () => ({
-    posts: []    // svaki post s pripadajućim komentarima
+    posts: [],
+    loading: false,
+    error: null,
   }),
   actions: {
     fetchPosts() {
-      const qPosts = query(
+      this.loading = true
+      onSnapshot(
         collection(db, 'posts'),
-        orderBy('createdAt', 'desc')
-      )
-      onSnapshot(qPosts, async snap => {
-        const loaded = []
-        for (const d of snap.docs) {
-          const data = d.data()
-          const post = {
-            id: d.id,
-            text: data.text,
-            likes: Array.isArray(data.likes) ? data.likes : [],
-            createdAt: data.createdAt || null,
-            comments: []
-          }
-
-          // dohvati komentare iz podkolekcije
-          const qCom = query(
-            collection(db, 'posts', d.id, 'comments'),
-            orderBy('createdAt', 'asc')
-          )
-          const comSnap = await getDocs(qCom)
-          post.comments = comSnap.docs.map(c => ({
-            id: c.id,
-            ...c.data()
-          }))
-
-          loaded.push(post)
+        snap => {
+          this.posts = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+          this.loading = false
+        },
+        err => {
+          this.error = err
+          this.loading = false
         }
-        this.posts = loaded
-      })
+      )
     },
 
     async publishPost(text) {
-      const { user } = useUserStore()
-      if (!user) return
-      await addDoc(collection(db, 'posts'), {
-        text,
-        createdBy: user.uid,
-        createdAt: serverTimestamp(),
-        likes: []
-      })
+      if (!text.trim()) return
+      console.log('⏫ publishPost()', { text, uid: auth.currentUser?.uid })
+      this.error = null
+      try {
+        await addDoc(collection(db, 'posts'), {
+          text,
+          author: auth.currentUser.uid,
+          likes: [],
+          comments: [],
+          createdAt: serverTimestamp(),
+        })
+        console.log('✅ publishPost succeeded')
+      } catch (e) {
+        console.error('❌ publishPost failed', e)
+        this.error = e
+      }
     },
 
     async likePost(postId) {
-      const { user } = useUserStore()
-      if (!user) return
       const ref = doc(db, 'posts', postId)
-      await updateDoc(ref, {
-        likes: arrayUnion({ userId: user.uid, at: serverTimestamp() })
-      })
+      try {
+        await updateDoc(ref, {
+          likes: arrayUnion(auth.currentUser.uid)
+        })
+      } catch (e) {
+        this.error = e
+      }
     },
 
     async addComment(postId, text) {
-      const { user } = useUserStore()
-      if (!user) return
-      await addDoc(collection(db, 'posts', postId, 'comments'), {
+      const ref = doc(db, 'posts', postId)
+      const newComment = {
+        id: Date.now().toString(),
+        author: auth.currentUser.uid,
         text,
-        author: user.uid,
-        createdAt: serverTimestamp()
-      })
+        createdAt: new Date(),
+      }
+      try {
+        await updateDoc(ref, {
+          comments: arrayUnion(newComment)
+        })
+      } catch (e) {
+        this.error = e
+      }
     }
   }
 })

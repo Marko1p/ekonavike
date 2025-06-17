@@ -1,86 +1,217 @@
 <template>
-  <div class="p-6 max-w-3xl mx-auto">
-    <h2 class="text-3xl font-bold text-green-700 mb-4">Habit Tracker</h2>
+  <div class="p-6 space-y-8">
 
-    
-    <div v-if="!user">
-      <p class="text-red-600 mb-4">Morate se prijaviti da vidite svoje navike.</p>
-      <router-link to="/" class="text-green-500 hover:underline">Povratak na prijavu</router-link>
+    <!-- Header + Add button -->
+    <div class="flex justify-between items-center">
+      <h1 class="text-3xl font-bold">My Eco Habits</h1>
+      <button
+        @click="openForm()"
+        class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded"
+      >
+        + New Habit
+      </button>
     </div>
 
-    
-    <div v-else>
-      
-      <section class="mb-6">
-        <label class="block text-green-800 font-medium mb-2" for="new-habit">Dodaj novu naviku:</label>
-        <div class="flex gap-2">
-          <input
-            id="new-habit"
-            v-model="newHabit"
-            type="text"
-            placeholder="Naziv navike"
-            class="flex-1 border border-gray-300 rounded p-2"
-          />
+    <!-- Form panel -->
+    <form
+      v-if="showForm"
+      @submit.prevent="submitForm"
+      class="bg-white shadow p-6 rounded space-y-4"
+    >
+      <div>
+        <label class="block font-medium">Name <span class="text-red-500">*</span></label>
+        <input
+          v-model="form.name"
+          type="text"
+          class="w-full border rounded px-3 py-2"
+        />
+        <p v-if="errors.name" class="text-red-500 text-sm">{{ errors.name }}</p>
+      </div>
+
+      <div>
+        <label class="block font-medium">Type</label>
+        <select v-model="form.type" class="w-full border rounded px-3 py-2">
+          <option value="recycling">Recycling</option>
+          <option value="transport">Eco Transport</option>
+          <option value="energy">Energy Saving</option>
+          <option value="waste_reduction">Waste Reduction</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
+
+      <div>
+        <label class="block font-medium">Date</label>
+        <input
+          v-model="form.date"
+          type="date"
+          class="w-full border rounded px-3 py-2"
+        />
+        <p v-if="errors.date" class="text-red-500 text-sm">{{ errors.date }}</p>
+      </div>
+
+      <div>
+        <label class="block font-medium">Notes (optional)</label>
+        <textarea
+          v-model="form.notes"
+          rows="3"
+          class="w-full border rounded px-3 py-2"
+        ></textarea>
+      </div>
+
+      <div class="flex space-x-2">
+        <button
+          type="submit"
+          class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded flex-1"
+        >
+          {{ isEditing ? 'Save Changes' : 'Add Habit' }}
+        </button>
+        <button
+          type="button"
+          @click="closeForm()"
+          class="bg-gray-300 hover:bg-gray-400 px-4 py-2 rounded"
+        >
+          Cancel
+        </button>
+      </div>
+    </form>
+
+    <!-- Empty state -->
+    <div v-if="habits.length === 0" class="text-center py-24">
+      <p class="text-gray-500">You have no habits yet. Add one above!</p>
+    </div>
+
+    <!-- Habit cards -->
+    <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div
+        v-for="h in habits"
+        :key="h.id"
+        class="bg-white shadow rounded p-4 flex flex-col"
+      >
+        <div class="flex justify-between items-center mb-2">
+          <span class="font-semibold">{{ h.name }}</span>
+          <span class="text-xs text-gray-500">{{ formatDate(h.date) }}</span>
+        </div>
+        <div class="text-sm mb-2 text-gray-600">{{ typeLabels[h.type] }}</div>
+        <div class="flex-grow text-gray-700" v-if="h.notes">{{ h.notes }}</div>
+        <div class="mt-4 flex justify-end space-x-2">
           <button
-            @click="addHabit"
-            class="bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded"
+            @click="openForm(h)"
+            class="text-blue-600 hover:underline text-sm"
           >
-            Spremi
+            Edit
+          </button>
+          <button
+            @click="deleteHabit(h.id)"
+            class="text-red-600 hover:underline text-sm"
+          >
+            Delete
           </button>
         </div>
-      </section>
-
-      
-      <section>
-        <h3 class="text-2xl font-semibold text-green-700 mb-2">Tvoje navike</h3>
-        <ul class="space-y-2">
-          <li
-            v-for="h in habits"
-            :key="h.id"
-            class="flex items-center justify-between bg-white dark:bg-green-800 border border-gray-200 dark:border-green-700 rounded p-3"
-          >
-            <span class="text-green-800 dark:text-green-200">{{ h.name }}</span>
-            <button
-              @click="deleteHabit(h.id)"
-              class="text-red-500 hover:text-red-700"
-            >
-              Obriši
-            </button>
-          </li>
-        </ul>
-        <p v-if="habits.length === 0" class="text-green-600 mt-4">Još nemaš spremljenih navika.</p>
-      </section>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
-import { useUserStore } from '../stores/user'
-import { useHabitsStore } from '../stores/habits'
+import { ref, reactive, onMounted, watch } from 'vue'
 
-
-const userStore = useUserStore()
-const habitsStore = useHabitsStore()
-
-userStore.init()
-habitsStore.init()
-
-const newHabit = ref('')
-const user = userStore.user
-const habits = habitsStore.list
-
-
-const addHabit = () => {
-  if (!newHabit.value.trim()) return
-  habitsStore.add(newHabit.value.trim())
-  newHabit.value = ''
+// labels for types
+const typeLabels = {
+  recycling: 'Recycling',
+  transport: 'Eco Transport',
+  energy: 'Energy Saving',
+  waste_reduction: 'Waste Reduction',
+  other: 'Other'
 }
-const deleteHabit = id => {
-  habitsStore.remove(id)
+
+// reactive list of habits
+const habits = ref([])
+
+// form visibility & mode
+const showForm = ref(false)
+const isEditing = ref(false)
+
+// form state & errors
+const form = reactive({
+  id: '',
+  name: '',
+  type: 'other',
+  date: new Date().toISOString().split('T')[0],
+  notes: ''
+})
+const errors = reactive({ name: '', date: '' })
+
+// load from localStorage
+onMounted(() => {
+  const s = localStorage.getItem('ekoNavikeHabits')
+  if (s) habits.value = JSON.parse(s)
+})
+
+// persist
+watch(habits, v => {
+  localStorage.setItem('ekoNavikeHabits', JSON.stringify(v))
+})
+
+// open for new or editing
+function openForm(habit) {
+  if (habit) {
+    form.id = habit.id
+    form.name = habit.name
+    form.type = habit.type
+    form.date = habit.date
+    form.notes = habit.notes
+    isEditing.value = true
+  } else {
+    resetForm()
+    isEditing.value = false
+  }
+  showForm.value = true
+}
+
+// close & clear
+function closeForm() {
+  showForm.value = false
+  resetForm()
+}
+
+// reset
+function resetForm() {
+  form.id = ''
+  form.name = ''
+  form.type = 'other'
+  form.date = new Date().toISOString().split('T')[0]
+  form.notes = ''
+  errors.name = ''
+  errors.date = ''
+}
+
+// submit
+function submitForm() {
+  // simple validation
+  errors.name = form.name.trim() ? '' : 'Name is required'
+  errors.date = isNaN(Date.parse(form.date)) ? 'Invalid date' : ''
+  if (errors.name || errors.date) return
+
+  if (isEditing.value) {
+    const idx = habits.value.findIndex(h => h.id === form.id)
+    if (idx > -1) habits.value.splice(idx, 1, { ...form })
+  } else {
+    habits.value.unshift({ ...form, id: crypto.randomUUID() })
+  }
+  closeForm()
+}
+
+// delete
+function deleteHabit(id) {
+  habits.value = habits.value.filter(h => h.id !== id)
+}
+
+// helper
+function formatDate(d) {
+  return new Date(d).toLocaleDateString()
 }
 </script>
 
 <style scoped>
-
+/* no extra CSS needed—everything’s Tailwind */
 </style>
