@@ -1,7 +1,6 @@
 <template>
   <div class="p-6 space-y-8">
 
-    <!-- Header + Add button -->
     <div class="flex justify-between items-center">
       <h1 class="text-3xl font-bold">My Eco Habits</h1>
       <button
@@ -12,7 +11,6 @@
       </button>
     </div>
 
-    <!-- Form panel -->
     <form
       v-if="showForm"
       @submit.prevent="submitForm"
@@ -75,12 +73,10 @@
       </div>
     </form>
 
-    <!-- Empty state -->
     <div v-if="habits.length === 0" class="text-center py-24">
       <p class="text-gray-500">You have no habits yet. Add one above!</p>
     </div>
 
-    <!-- Habit cards -->
     <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
       <div
         v-for="h in habits"
@@ -115,7 +111,6 @@
 <script setup>
 import { ref, reactive, onMounted, watch } from 'vue'
 
-// labels for types
 const typeLabels = {
   recycling: 'Recycling',
   transport: 'Eco Transport',
@@ -124,14 +119,11 @@ const typeLabels = {
   other: 'Other'
 }
 
-// reactive list of habits
 const habits = ref([])
 
-// form visibility & mode
 const showForm = ref(false)
 const isEditing = ref(false)
 
-// form state & errors
 const form = reactive({
   id: '',
   name: '',
@@ -141,13 +133,11 @@ const form = reactive({
 })
 const errors = reactive({ name: '', date: '' })
 
-// load from localStorage
 onMounted(() => {
   const s = localStorage.getItem('ekoNavikeHabits')
   if (s) habits.value = JSON.parse(s)
 })
 
-// persist
 watch(habits, v => {
   localStorage.setItem('ekoNavikeHabits', JSON.stringify(v))
 })
@@ -168,13 +158,11 @@ function openForm(habit) {
   showForm.value = true
 }
 
-// close & clear
 function closeForm() {
   showForm.value = false
   resetForm()
 }
 
-// reset
 function resetForm() {
   form.id = ''
   form.name = ''
@@ -185,9 +173,7 @@ function resetForm() {
   errors.date = ''
 }
 
-// submit
 function submitForm() {
-  // simple validation
   errors.name = form.name.trim() ? '' : 'Name is required'
   errors.date = isNaN(Date.parse(form.date)) ? 'Invalid date' : ''
   if (errors.name || errors.date) return
@@ -201,17 +187,14 @@ function submitForm() {
   closeForm()
 }
 
-// delete
 function deleteHabit(id) {
   habits.value = habits.value.filter(h => h.id !== id)
 }
 
-// helper
 function formatDate(d) {
   return new Date(d).toLocaleDateString()
 }
 </script>
 
 <style scoped>
-/* no extra CSS needed—everything’s Tailwind */
 </style>
