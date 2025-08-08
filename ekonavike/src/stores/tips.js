@@ -1,30 +1,29 @@
 import { defineStore } from 'pinia'
-import { db } from '../firebase'
-import {
-  collection,
-  onSnapshot,
-  query
-} from 'firebase/firestore'
+import axios from 'axios'
 
 export const useTipsStore = defineStore('tips', {
   state: () => ({
     tips: [],
-    unsubscribe: null
+    loading: false,
+    error: null
   }),
   actions: {
-    init() {
-      
-      const q = query(collection(db, 'tips'))
-      this.unsubscribe = onSnapshot(q, snapshot => {
-        this.tips = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
-      })
-    },
-    cleanup() {
-      if (this.unsubscribe) {
-        this.unsubscribe()
-        this.unsubscribe = null
+    async generateTips(habits) {
+      this.loading = true
+      this.error   = null
+      this.tips    = []
+      try {
+        const resp = await axios.post('/api/tips', { habits })
+        const text = resp.data.tips || ''
+        this.tips = text
+          .split('\n')
+          .map(line => line.trim())
+          .filter(line => line)
+      } catch (e) {
+        this.error = e.response?.data?.error || e.message
+      } finally {
+        this.loading = false
       }
-      this.tips = []
     }
   }
 })

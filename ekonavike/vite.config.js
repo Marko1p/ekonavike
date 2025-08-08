@@ -1,3 +1,4 @@
+// vite.config.js
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import path from 'path'
@@ -9,10 +10,11 @@ export default defineConfig({
   },
   server: {
     proxy: {
+      // sve što početkom puta ima `/api` ide na port 3001
       '/api': {
-         target: 'http://localhost:3000',
+        target: 'http://localhost:3001',
         changeOrigin: true,
-        secure: false,
+        // rewrite nije nužno, Vite sam preusmjeri `/api/...` u `http://localhost:3001/api/...`
       }
     }
   }
